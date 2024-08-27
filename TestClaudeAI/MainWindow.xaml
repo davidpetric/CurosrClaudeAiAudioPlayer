@@ -1,85 +1,79 @@
 ﻿<Window
-    x:Class="AudioPlayerWPF.MainWindow"
-    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    x:Class="TestClaudeAI.MainWindow"
+    xmlns="https://github.com/avaloniaui"
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-    xmlns:local="clr-namespace:AudioPlayerWPF"
-    Title="Audio Player"
-    Width="400"
-    Height="450"
-    MinWidth="300"
-    MinHeight="350">
-    <Grid Margin="10">
-        <Grid.RowDefinitions>
-            <RowDefinition Height="Auto" />
-            <RowDefinition Height="Auto" />
-            <RowDefinition Height="Auto" />
-            <RowDefinition Height="*" />
-            <RowDefinition Height="Auto" />
-            <RowDefinition Height="Auto" />
-            <RowDefinition Height="Auto" />
-        </Grid.RowDefinitions>
-
+    xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+    xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+    xmlns:sys="clr-namespace:System;assembly=netstandard"
+    xmlns:local="clr-namespace:TestClaudeAI"
+    Title="TestClaudeAI"
+    d:DesignHeight="450"
+    d:DesignWidth="800"
+    mc:Ignorable="d">
+    <Window.Resources>
+        <local:FileNameConverter x:Key="FileNameConverter"/>
+    </Window.Resources>
+    <Grid RowDefinitions="Auto,*,Auto,Auto,Auto,Auto">
         <Button
             Grid.Row="0"
-            Margin="0,0,0,10"
-            Click="SelectFile_Click"
-            Content="Add to Playlist" />
-        <Button
-            Grid.Row="1"
-            Margin="0,0,0,10"
-            Click="Play_Click"
-            Content="Play" />
-        <Button
-            Grid.Row="2"
-            Margin="0,0,0,10"
-            Click="Stop_Click"
-            Content="Stop" />
+            Margin="10"
+            Click="SelectFiles_Click"
+            Content="Select Files" />
         <ListBox
-            x:Name="PlaylistListBox"
-            Grid.Row="3"
-            Margin="0,0,0,10">
+            Name="PlaylistListBox"
+            Grid.Row="1"
+            Margin="10"
+            DoubleTapped="PlaylistListBox_DoubleTapped"
+            ItemsSource="{Binding AudioPlaylist}"
+            SelectedItem="{Binding SelectedFile}">
             <ListBox.ItemTemplate>
                 <DataTemplate>
-                    <TextBlock Text="{Binding FileName}">
-                        <TextBlock.Style>
-                            <Style TargetType="TextBlock">
-                                <Style.Triggers>
-                                    <DataTrigger Binding="{Binding IsPlaying}" Value="True">
-                                        <Setter Property="FontWeight" Value="Bold" />
-                                        <Setter Property="Foreground" Value="Blue" />
-                                    </DataTrigger>
-                                </Style.Triggers>
-                            </Style>
-                        </TextBlock.Style>
-                    </TextBlock>
+                    <TextBlock Text="{Binding Converter={StaticResource FileNameConverter}}" />
                 </DataTemplate>
             </ListBox.ItemTemplate>
         </ListBox>
+        <Canvas
+            Name="WaveformCanvas"
+            Grid.Row="2"
+            Height="100"
+            Margin="10">
+            <Polyline
+                Name="WaveformPolyline"
+                Stroke="Blue"
+                StrokeThickness="1" />
+        </Canvas>
+        <Slider
+            Name="PositionSlider"
+            Grid.Row="3"
+            Margin="10"
+            IsEnabled="{Binding IsPlaying}"
+            Maximum="100"
+            Minimum="0"
+            PropertyChanged="PositionSlider_PropertyChanged"
+            Value="{Binding CurrentPosition}" />
         <ProgressBar
-            x:Name="ProgressBar"
+            Name="ProgressBar"
             Grid.Row="4"
-            Height="20"
-            Margin="0,0,0,10" />
-        <TextBlock
-            x:Name="TimeLabel"
+            Margin="10"
+            Maximum="100"
+            Minimum="0"
+            Value="{Binding CurrentPosition}" />
+        <StackPanel
             Grid.Row="5"
-            Margin="0,0,0,10"
-            HorizontalAlignment="Center"
-            Text="00:00 / 00:00" />
-        <StackPanel Grid.Row="6" Orientation="Horizontal">
-            <TextBlock
-                Margin="0,0,5,0"
-                VerticalAlignment="Center"
-                Text="Volume: " />
-            <Slider
-                x:Name="VolumeSlider"
-                Width="150"
-                IsSnapToTickEnabled="True"
-                Maximum="1"
-                Minimum="0"
-                TickFrequency="0.1"
-                ValueChanged="VolumeSlider_ValueChanged"
-                Value="1" />
+            Margin="10"
+            Orientation="Horizontal">
+            <Button
+                Margin="0,0,10,0"
+                Command="{Binding PlayCommand}"
+                Content="Play">
+                <Button.IsEnabled>
+                    <Binding Converter="{x:Static BoolConverters.Not}" Path="IsPlaying" />
+                </Button.IsEnabled>
+            </Button>
+            <Button
+                Command="{Binding PauseCommand}"
+                Content="Pause"
+                IsEnabled="{Binding IsPlaying}" />
         </StackPanel>
     </Grid>
 </Window>

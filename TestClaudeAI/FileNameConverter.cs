@@ -1,8 +1,9 @@
+using Avalonia.Data.Converters;
+using System;
 using System.Globalization;
 using System.IO;
-using System.Windows.Data;
 
-namespace AudioPlayerWPF;
+namespace TestClaudeAI;
 
 public class FileNameConverter : IValueConverter
 {
