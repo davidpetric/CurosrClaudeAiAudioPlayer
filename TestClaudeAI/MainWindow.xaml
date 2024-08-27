@@ -3,25 +3,20 @@
     xmlns="https://github.com/avaloniaui"
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
     xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+    xmlns:local="clr-namespace:TestClaudeAI"
     xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
     xmlns:sys="clr-namespace:System;assembly=netstandard"
-    xmlns:local="clr-namespace:TestClaudeAI"
     Title="TestClaudeAI"
-    d:DesignHeight="450"
-    d:DesignWidth="800"
+    Width="500"
+    Height="1000"
     mc:Ignorable="d">
     <Window.Resources>
-        <local:FileNameConverter x:Key="FileNameConverter"/>
+        <local:FileNameConverter x:Key="FileNameConverter" />
     </Window.Resources>
-    <Grid RowDefinitions="Auto,*,Auto,Auto,Auto,Auto">
-        <Button
-            Grid.Row="0"
-            Margin="10"
-            Click="SelectFiles_Click"
-            Content="Select Files" />
+    <Grid RowDefinitions="Auto,Auto,*,Auto,Auto,Auto,Auto">
         <ListBox
             Name="PlaylistListBox"
-            Grid.Row="1"
+            Grid.Row="2"
             Margin="10"
             DoubleTapped="PlaylistListBox_DoubleTapped"
             ItemsSource="{Binding AudioPlaylist}"
@@ -32,19 +27,79 @@
                 </DataTemplate>
             </ListBox.ItemTemplate>
         </ListBox>
-        <Canvas
+
+        <!--<Canvas
             Name="WaveformCanvas"
-            Grid.Row="2"
+            Grid.Row="3"
             Height="100"
             Margin="10">
             <Polyline
                 Name="WaveformPolyline"
                 Stroke="Blue"
                 StrokeThickness="1" />
-        </Canvas>
+        </Canvas>-->
+
+        <StackPanel
+            Grid.Row="4"
+            Margin="10"
+            HorizontalAlignment="Center"
+            Orientation="Horizontal">
+
+            <Button
+                Name="PlayButton"
+                Margin="10"
+                Click="PlayButton_Click"
+                ToolTip.Tip="Play">
+                <Path
+                    Width="20"
+                    Height="20"
+                    Data="M8,5.14V19.14L19,12.14L8,5.14Z"
+                    Fill="{Binding $parent[Button].Foreground}"
+                    Stretch="Uniform" />
+            </Button>
+            <Button
+                Name="PauseButton"
+                Margin="10"
+                Click="PauseButton_Click"
+                ToolTip.Tip="Pause">
+                <Path
+                    Width="20"
+                    Height="20"
+                    Data="M14,19H18V5H14M6,19H10V5H6V19Z"
+                    Fill="{Binding $parent[Button].Foreground}"
+                    Stretch="Uniform" />
+            </Button>
+
+            <Button
+                Margin="10"
+                Click="ImportFiles_Click"
+                ToolTip.Tip="Import Files from Path">
+                <StackPanel Orientation="Horizontal">
+                    <Path
+                        Width="20"
+                        Height="20"
+                        Data="M19,13H13V19H11V13H5V11H11V5H13V11H19V13Z"
+                        Fill="{Binding $parent[Button].Foreground}"
+                        Stretch="Uniform" />
+                </StackPanel>
+            </Button>
+
+            <Button
+                Margin="10"
+                Click="ClearCache_Click"
+                ToolTip.Tip="Clear Cache">
+                <Path
+                    Width="20"
+                    Height="20"
+                    Data="M19,4H15.5L14.5,3H9.5L8.5,4H5V6H19M6,19A2,2 0 0,0 8,21H16A2,2 0 0,0 18,19V7H6V19Z"
+                    Fill="{Binding $parent[Button].Foreground}"
+                    Stretch="Uniform" />
+            </Button>
+        </StackPanel>
+
         <Slider
             Name="PositionSlider"
-            Grid.Row="3"
+            Grid.Row="6"
             Margin="10"
             IsEnabled="{Binding IsPlaying}"
             Maximum="100"
@@ -53,27 +108,10 @@
             Value="{Binding CurrentPosition}" />
         <ProgressBar
             Name="ProgressBar"
-            Grid.Row="4"
+            Grid.Row="7"
             Margin="10"
             Maximum="100"
             Minimum="0"
             Value="{Binding CurrentPosition}" />
-        <StackPanel
-            Grid.Row="5"
-            Margin="10"
-            Orientation="Horizontal">
-            <Button
-                Margin="0,0,10,0"
-                Command="{Binding PlayCommand}"
-                Content="Play">
-                <Button.IsEnabled>
-                    <Binding Converter="{x:Static BoolConverters.Not}" Path="IsPlaying" />
-                </Button.IsEnabled>
-            </Button>
-            <Button
-                Command="{Binding PauseCommand}"
-                Content="Pause"
-                IsEnabled="{Binding IsPlaying}" />
-        </StackPanel>
     </Grid>
 </Window>

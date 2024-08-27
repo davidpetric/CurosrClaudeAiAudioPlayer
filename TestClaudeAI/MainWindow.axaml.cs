@@ -8,10 +8,13 @@ using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.ComponentModel;
+using System.IO;
 using System.Linq;
 using System.Runtime.CompilerServices;
 using System.Threading.Tasks;
 using System.Timers;
+using Path = System.IO.Path;
+
 
 namespace TestClaudeAI;
 
@@ -19,7 +22,7 @@ public partial class MainWindow : Window, INotifyPropertyChanged
 {
     private WaveOutEvent outputDevice;
     private AudioFileReader audioFile;
-    private bool isPlaying;
+    private bool _isPlaying;
     private string selectedFile;
     private double currentPosition;
     private readonly Timer positionTimer;
@@ -28,6 +31,8 @@ public partial class MainWindow : Window, INotifyPropertyChanged
 
     public ObservableCollection<string> AudioPlaylist { get; } = new ObservableCollection<string>();
 
+    private const string CacheDirectory = "AudioCache";
+    private readonly string cachePath;
 
     public string SelectedFile
     {
@@ -44,12 +49,12 @@ public partial class MainWindow : Window, INotifyPropertyChanged
 
     public bool IsPlaying
     {
-        get => isPlaying;
+        get => _isPlaying;
         set
         {
-            if (isPlaying != value)
+            if (_isPlaying != value)
             {
-                isPlaying = value;
+                _isPlaying = value;
                 OnPropertyChanged();
             }
         }
@@ -83,6 +88,8 @@ public partial class MainWindow : Window, INotifyPropertyChanged
 
     public event PropertyChangedEventHandler PropertyChanged;
 
+    private const string PlaylistFileName = "playlist.txt";
+
     public MainWindow()
     {
         InitializeComponent();
@@ -90,27 +97,66 @@ public partial class MainWindow : Window, INotifyPropertyChanged
 
         positionTimer = new Timer(100);
         positionTimer.Elapsed += PositionTimer_Elapsed;
+
+        // Initialize cache path
+        cachePath = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "TestClaudeAI", CacheDirectory);
+        Directory.CreateDirectory(cachePath);
+
+        // Load cached playlist
+        LoadCachedPlaylist();
     }
 
-    private void SelectFiles_Click(object sender, RoutedEventArgs e)
+    private async void ImportFiles_Click(object sender, RoutedEventArgs e)
     {
-        var dialog = new OpenFileDialog
-        {
-            AllowMultiple = true,
-            Filters = new() { new FileDialogFilter { Name = "Audio Files", Extensions = { "mp3", "wav" } } }
-        };
+        var dialog = new OpenFolderDialog();
+        var result = await dialog.ShowAsync(this);
 
-        var result = dialog.ShowAsync(this);
-        result.ContinueWith(t =>
+        if (result != null)
         {
-            if (t.Result != null && t.Result.Length > 0)
+            await ImportFilesFromPath(result);
+        }
+    }
+
+    private async Task ImportFilesFromPath(string folderPath)
+    {
+        var audioExtensions = new[] { ".mp3", ".wav", ".ogg", ".flac" };
+        var files = Directory.GetFiles(folderPath, "*.*", SearchOption.AllDirectories)
+            .Where(file => audioExtensions.Contains(Path.GetExtension(file).ToLower()));
+
+        foreach (var file in files)
+        {
+            await Dispatcher.UIThread.InvokeAsync(() =>
             {
-                foreach (var file in t.Result)
+                if (!AudioPlaylist.Contains(file))
+                {
+                    AudioPlaylist.Add(file);
+                }
+            });
+        }
+
+        SavePlaylistToCache();
+    }
+
+    private void SavePlaylistToCache()
+    {
+        var playlistFile = Path.Combine(cachePath, PlaylistFileName);
+        File.WriteAllLines(playlistFile, AudioPlaylist.Distinct());
+    }
+
+    private void LoadCachedPlaylist()
+    {
+        var playlistFile = Path.Combine(cachePath, PlaylistFileName);
+        if (File.Exists(playlistFile))
+        {
+            var cachedFiles = File.ReadAllLines(playlistFile);
+            foreach (var file in cachedFiles)
+            {
+                if (File.Exists(file) && !AudioPlaylist.Contains(file))
                 {
                     AudioPlaylist.Add(file);
                 }
             }
-        });
+        }
     }
 
     private void PlayButton_Click(object sender, RoutedEventArgs e)
@@ -125,8 +171,9 @@ public partial class MainWindow : Window, INotifyPropertyChanged
     {
         if (outputDevice != null)
         {
-            outputDevice.Stop();
+            outputDevice.Pause();
             IsPlaying = false;
+            positionTimer.Stop();
         }
     }
 
@@ -144,42 +191,27 @@ public partial class MainWindow : Window, INotifyPropertyChanged
         if (string.IsNullOrEmpty(filePath))
             return;
 
-        await Task.Run(() =>
+        WaveformData = WaveformDisplay.GetWaveformData(filePath).ToList();
+        Dispatcher.UIThread.Post(() =>
         {
-            WaveformData = WaveformDisplay.GetWaveformData(filePath).ToList();
-            Dispatcher.UIThread.Post(() =>
-            {
-                OnPropertyChanged(nameof(WaveformData));
-                //WaveformDisplay.InvalidateVisual();
-            });
+            OnPropertyChanged(nameof(WaveformData));
+            //WaveformDisplay.InvalidateVisual();
         });
     }
 
-    private async void PlayAudio(string filePath)
+    private void PlayAudio(string filePath)
     {
-        if (outputDevice == null)
-        {
-            outputDevice = new WaveOutEvent();
-            outputDevice.PlaybackStopped += OnPlaybackStopped;
-        }
-        else
+        // Stop and dispose of the current playback
+        if (outputDevice != null)
         {
             outputDevice.Stop();
-        }
-
-        if (audioFile == null || audioFile.FileName != filePath)
-        {
+            outputDevice.Dispose();
             audioFile?.Dispose();
-            audioFile = new AudioFileReader(filePath);
-            outputDevice.Init(audioFile);
-
-            await LoadWaveformData(filePath);
-        }
-        else
-        {
-            audioFile.Position = 0;
         }
 
+        audioFile = new AudioFileReader(filePath);
+        outputDevice = new WaveOutEvent();
+        outputDevice.Init(audioFile);
         outputDevice.Play();
         IsPlaying = true;
         positionTimer.Start();
@@ -191,7 +223,14 @@ public partial class MainWindow : Window, INotifyPropertyChanged
         {
             Dispatcher.UIThread.Post(() =>
             {
-                CurrentPosition = (double)audioFile.Position / audioFile.Length * 100;
+                try
+                {
+                    CurrentPosition = (audioFile.Position * 100.0 / audioFile.Length);
+                }
+                catch (Exception)
+                {
+                    CurrentPosition = 0;
+                }
             });
         }
     }
@@ -227,5 +266,21 @@ public partial class MainWindow : Window, INotifyPropertyChanged
     protected virtual void OnPropertyChanged([CallerMemberName] string propertyName = null)
     {
         PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
+    }
+
+    private async void ClearCache_Click(object sender, RoutedEventArgs e)
+    {
+        ClearCache();
+    }
+
+    private void ClearCache()
+    {
+        var playlistFile = Path.Combine(cachePath, PlaylistFileName);
+        if (File.Exists(playlistFile))
+        {
+            File.Delete(playlistFile);
+        }
+
+        AudioPlaylist.Clear();
     }
 }
