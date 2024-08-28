@@ -1,18 +1,22 @@
 # TestClaudeAI
 
-App was built using Claude AI and Cursor editor.
-
+App was built using Claude AI and Cursor editor
 
 Features:
-- import files from a path
-- clear imported files
+- playlist(with cache)
 - play
 - pause
-- progress bar
+- progress slider
+- volume slider
 
-
-It looks like this:
+Initially used WPF, then converted it to AvaloniaUI so it can run on multiple OSes(not tested)
 
 <br>
 
+# UI latest version
+![image](https://github.com/user-attachments/assets/1e0887bb-d71e-4555-a7dc-dcf764ca9d09)
+
+<br>
+
+# UI older version
 ![image](https://github.com/user-attachments/assets/38be2775-cbae-4e8d-9592-c895cfe0d777)
