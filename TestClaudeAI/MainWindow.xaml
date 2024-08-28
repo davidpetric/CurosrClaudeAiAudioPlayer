@@ -109,11 +109,13 @@
         </Grid>
 
         <local:WaveformDisplay
+            Name="WaveformDisplay"
             Grid.Row="7"
             Height="50"
             Margin="10"
             WaveformData="{Binding WaveformData}"
-            WaveformBrush="{Binding AccentBrush}" />
+            WaveformBrush="{Binding AccentBrush}"
+            Progress="{Binding CurrentPosition, Mode=TwoWay, Converter={x:Static local:ProgressConverter.Instance}}" />
 
     </Grid>
 

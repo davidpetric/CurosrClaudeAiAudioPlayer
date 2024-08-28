@@ -122,6 +122,12 @@ public class MainWindow : Window, INotifyPropertyChanged
     private void InitializeComponent()
     {
         AvaloniaXamlLoader.Load(this);
+
+        var waveformDisplay = this.FindControl<WaveformDisplay>("WaveformDisplay");
+        if (waveformDisplay != null)
+        {
+            waveformDisplay.PositionChanged += WaveformDisplay_PositionChanged;
+        }
     }
 
     protected override void OnLoaded(RoutedEventArgs e)
@@ -253,11 +259,7 @@ public class MainWindow : Window, INotifyPropertyChanged
 
     private void PositionTimer_Elapsed(object sender, ElapsedEventArgs e)
     {
-        if (
-            audioFile != null
-            && outputDevice != null
-            && outputDevice.PlaybackState == PlaybackState.Playing
-        )
+        if (audioFile != null && outputDevice != null && outputDevice.PlaybackState == PlaybackState.Playing)
         {
             Dispatcher.UIThread.Post(() =>
             {
@@ -267,6 +269,13 @@ public class MainWindow : Window, INotifyPropertyChanged
                     TimeSpan currentTime = audioFile.CurrentTime;
                     TimeSpan totalTime = audioFile.TotalTime;
                     SongLength = $"{currentTime.Minutes:D2}:{currentTime.Seconds:D2} / {totalTime.Minutes:D2}:{totalTime.Seconds:D2}";
+                    
+                    // Update the progress of the waveform display
+                    var waveformDisplay = this.FindControl<WaveformDisplay>("WaveformDisplay");
+                    if (waveformDisplay != null)
+                    {
+                        waveformDisplay.Progress = CurrentPosition / 100.0;
+                    }
                 }
                 catch (Exception)
                 {
@@ -371,6 +380,15 @@ public class MainWindow : Window, INotifyPropertyChanged
                 songLength = value;
                 OnPropertyChanged();
             }
+        }
+    }
+
+    private void WaveformDisplay_PositionChanged(object? sender, double newProgress)
+    {
+        if (audioFile != null)
+        {
+            audioFile.Position = (long)(audioFile.Length * newProgress);
+            CurrentPosition = newProgress * 100;
         }
     }
 }

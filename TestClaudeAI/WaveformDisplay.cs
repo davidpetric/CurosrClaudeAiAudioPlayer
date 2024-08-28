@@ -1,5 +1,6 @@
 ﻿using Avalonia;
 using Avalonia.Controls;
+using Avalonia.Input;
 using Avalonia.Media;
 using NAudio.Wave;
 using System;
@@ -28,9 +29,39 @@ namespace TestClaudeAI
             set => SetValue(WaveformBrushProperty, value);
         }
 
+        public static readonly StyledProperty<double> ProgressProperty = AvaloniaProperty.Register<
+            WaveformDisplay,
+            double
+        >(nameof(Progress));
+
+        public double Progress
+        {
+            get => GetValue(ProgressProperty);
+            set => SetValue(ProgressProperty, value);
+        }
+
+        public event EventHandler<double>? PositionChanged;
+
         static WaveformDisplay()
         {
-            AffectsRender<WaveformDisplay>(WaveformDataProperty, WaveformBrushProperty);
+            AffectsRender<WaveformDisplay>(
+                WaveformDataProperty,
+                WaveformBrushProperty,
+                ProgressProperty
+            );
+        }
+
+        public WaveformDisplay()
+        {
+            this.PointerPressed += WaveformDisplay_PointerPressed;
+        }
+
+        private void WaveformDisplay_PointerPressed(object? sender, PointerPressedEventArgs e)
+        {
+            var position = e.GetPosition(this);
+            var newProgress = position.X / Bounds.Width;
+            Progress = newProgress;
+            PositionChanged?.Invoke(this, newProgress);
         }
 
         public override void Render(DrawingContext context)
@@ -42,13 +73,16 @@ namespace TestClaudeAI
                 return;
             }
 
-            var pen = new Pen(WaveformBrush ?? Brushes.LightBlue, 3);
+            var pen = new Pen(WaveformBrush ?? Brushes.LightBlue, 1);
+            var progressPen = new Pen(Brushes.White, 1);
             var bounds = Bounds;
             var centerY = bounds.Height / 2;
 
             var dataPoints = WaveformData.ToList();
             var pointsPerPixel = (double)dataPoints.Count / bounds.Width;
             var currentX = 0d;
+
+            var progressWidth = bounds.Width * Progress;
 
             for (int i = 0; i < bounds.Width; i++)
             {
@@ -59,11 +93,15 @@ namespace TestClaudeAI
                 var max = slice.Max();
                 var min = slice.Min();
 
-                // Flip the waveform vertically
                 var topY = centerY - (max * centerY);
                 var bottomY = centerY - (min * centerY);
 
-                context.DrawLine(pen, new Point(currentX, topY), new Point(currentX, bottomY));
+                var currentPen = i <= progressWidth ? progressPen : pen;
+                context.DrawLine(
+                    currentPen,
+                    new Point(currentX, topY),
+                    new Point(currentX, bottomY)
+                );
                 currentX += 1;
             }
         }
