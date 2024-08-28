@@ -2,6 +2,7 @@
 using Avalonia.Controls;
 using Avalonia.Input;
 using Avalonia.Interactivity;
+using Avalonia.Markup.Xaml;
 using Avalonia.Threading;
 using NAudio.Wave;
 using System;
@@ -14,22 +15,23 @@ using System.Runtime.CompilerServices;
 using System.Threading.Tasks;
 using System.Timers;
 using Path = System.IO.Path;
-
+using Avalonia.Media;
+using Avalonia.Styling;
 
 namespace TestClaudeAI;
 
-public partial class MainWindow : Window, INotifyPropertyChanged
+public class MainWindow : Window, INotifyPropertyChanged
 {
-    private WaveOutEvent outputDevice;
-    private AudioFileReader audioFile;
+    private WaveOutEvent? outputDevice;
+    private AudioFileReader? audioFile;
     private bool _isPlaying;
-    private string selectedFile;
+    private string? selectedFile;
     private double currentPosition;
     private readonly Timer positionTimer;
 
-    private IEnumerable<float> waveformData;
+    private IEnumerable<float>? waveformData;
 
-    public ObservableCollection<string> AudioPlaylist { get; } = new ObservableCollection<string>();
+    public ObservableCollection<string> AudioPlaylist { get; } = [];
 
     private const string CacheDirectory = "AudioCache";
     private readonly string cachePath;
@@ -65,7 +67,7 @@ public partial class MainWindow : Window, INotifyPropertyChanged
         get => currentPosition;
         set
         {
-            if (currentPosition != value)
+            if (Math.Abs(currentPosition - value) > 0.01) // Add a small threshold to reduce updates
             {
                 currentPosition = value;
                 OnPropertyChanged();
@@ -73,7 +75,7 @@ public partial class MainWindow : Window, INotifyPropertyChanged
         }
     }
 
-    public IEnumerable<float> WaveformData
+    public IEnumerable<float>? WaveformData
     {
         get => waveformData;
         set
@@ -86,24 +88,46 @@ public partial class MainWindow : Window, INotifyPropertyChanged
         }
     }
 
-    public event PropertyChangedEventHandler PropertyChanged;
+    public event PropertyChangedEventHandler? PropertyChanged;
 
     private const string PlaylistFileName = "playlist.txt";
 
     public MainWindow()
     {
         InitializeComponent();
+
         DataContext = this;
 
         positionTimer = new Timer(100);
         positionTimer.Elapsed += PositionTimer_Elapsed;
 
         // Initialize cache path
-        cachePath = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "TestClaudeAI", CacheDirectory);
+        cachePath = Path.Combine(
+            Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
+            "TestClaudeAI",
+            CacheDirectory
+        );
         Directory.CreateDirectory(cachePath);
 
         // Load cached playlist
         LoadCachedPlaylist();
+
+        // Get the accent color
+        UpdateAccentColor();
+
+        // Subscribe to theme changes
+        ActualThemeVariantChanged += OnActualThemeVariantChanged;
+    }
+
+    private void InitializeComponent()
+    {
+        AvaloniaXamlLoader.Load(this);
+    }
+
+    protected override void OnLoaded(RoutedEventArgs e)
+    {
+        this.AttachDevTools();
+        base.OnLoaded(e);
     }
 
     private async void ImportFiles_Click(object sender, RoutedEventArgs e)
@@ -120,7 +144,8 @@ public partial class MainWindow : Window, INotifyPropertyChanged
     private async Task ImportFilesFromPath(string folderPath)
     {
         var audioExtensions = new[] { ".mp3", ".wav", ".ogg", ".flac" };
-        var files = Directory.GetFiles(folderPath, "*.*", SearchOption.AllDirectories)
+        var files = Directory
+            .GetFiles(folderPath, "*.*", SearchOption.AllDirectories)
             .Where(file => audioExtensions.Contains(Path.GetExtension(file).ToLower()));
 
         foreach (var file in files)
@@ -191,12 +216,17 @@ public partial class MainWindow : Window, INotifyPropertyChanged
         if (string.IsNullOrEmpty(filePath))
             return;
 
-        WaveformData = WaveformDisplay.GetWaveformData(filePath).ToList();
-        Dispatcher.UIThread.Post(() =>
+        try
         {
-            OnPropertyChanged(nameof(WaveformData));
-            //WaveformDisplay.InvalidateVisual();
-        });
+            Console.WriteLine($"Loading waveform data for: {filePath}");
+            var waveformData = await Task.Run(() => WaveformDisplay.GetWaveformData(filePath).ToList());
+            Console.WriteLine($"Waveform data loaded. Count: {waveformData.Count}");
+            WaveformData = waveformData;
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error loading waveform data: {ex.Message}");
+        }
     }
 
     private void PlayAudio(string filePath)
@@ -215,21 +245,33 @@ public partial class MainWindow : Window, INotifyPropertyChanged
         outputDevice.Play();
         IsPlaying = true;
         positionTimer.Start();
+
+        // Update song length
+        TimeSpan totalTime = audioFile.TotalTime;
+        SongLength = $"{totalTime.Minutes:D2}:{totalTime.Seconds:D2}";
     }
 
     private void PositionTimer_Elapsed(object sender, ElapsedEventArgs e)
     {
-        if (audioFile != null && outputDevice != null && outputDevice.PlaybackState == PlaybackState.Playing)
+        if (
+            audioFile != null
+            && outputDevice != null
+            && outputDevice.PlaybackState == PlaybackState.Playing
+        )
         {
             Dispatcher.UIThread.Post(() =>
             {
                 try
                 {
                     CurrentPosition = (audioFile.Position * 100.0 / audioFile.Length);
+                    TimeSpan currentTime = audioFile.CurrentTime;
+                    TimeSpan totalTime = audioFile.TotalTime;
+                    SongLength = $"{currentTime.Minutes:D2}:{currentTime.Seconds:D2} / {totalTime.Minutes:D2}:{totalTime.Seconds:D2}";
                 }
                 catch (Exception)
                 {
                     CurrentPosition = 0;
+                    SongLength = "00:00 / 00:00";
                 }
             });
         }
@@ -263,7 +305,7 @@ public partial class MainWindow : Window, INotifyPropertyChanged
         base.OnClosed(e);
     }
 
-    protected virtual void OnPropertyChanged([CallerMemberName] string propertyName = null)
+    protected virtual void OnPropertyChanged([CallerMemberName] string? propertyName = null)
     {
         PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
     }
@@ -282,5 +324,53 @@ public partial class MainWindow : Window, INotifyPropertyChanged
         }
 
         AudioPlaylist.Clear();
+    }
+
+    private IBrush? accentBrush;
+    public IBrush? AccentBrush
+    {
+        get => accentBrush;
+        set
+        {
+            if (accentBrush != value)
+            {
+                accentBrush = value;
+                OnPropertyChanged();
+            }
+        }
+    }
+
+    private void UpdateAccentColor()
+    {
+        var theme = Application.Current.ActualThemeVariant;
+        var accentColor = Application.Current.FindResource(theme == ThemeVariant.Dark ? "SystemAccentColorDark1" : "SystemAccentColor");
+        
+        if (accentColor is Color color)
+        {
+            AccentBrush = new SolidColorBrush(color);
+        }
+        else
+        {
+            AccentBrush = Brushes.LightBlue; // Fallback color
+        }
+    }
+
+    private void OnActualThemeVariantChanged(object sender, EventArgs e)
+    {
+        UpdateAccentColor();
+    }
+
+    private string songLength;
+    public string SongLength
+    {
+        get => songLength;
+        set
+        {
+            if (songLength != value)
+            {
+                songLength = value;
+                OnPropertyChanged();
+            }
+        }
     }
 }

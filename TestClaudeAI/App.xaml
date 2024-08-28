@@ -1,8 +1,13 @@
 <Application xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+              xmlns:sty="using:FluentAvalonia.Styling"
+              xmlns:local="using:TestClaudeAI"
              x:Class="TestClaudeAI.App"
              RequestedThemeVariant="Dark">
-  <Application.Styles>
-    <FluentTheme />
-  </Application.Styles>
+    <Application.Styles>
+        <sty:FluentAvaloniaTheme />
+    </Application.Styles>
+    <Application.Resources>
+        <local:BooleanToStringConverter x:Key="BooleanToStringConverter"/>
+    </Application.Resources>
 </Application>

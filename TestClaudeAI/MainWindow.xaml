@@ -13,7 +13,7 @@
     <Window.Resources>
         <local:FileNameConverter x:Key="FileNameConverter" />
     </Window.Resources>
-    <Grid RowDefinitions="Auto,Auto,*,Auto,Auto,Auto,Auto">
+    <Grid RowDefinitions="Auto,Auto,*,Auto,Auto,Auto,Auto,Auto">
         <ListBox
             Name="PlaylistListBox"
             Grid.Row="2"
@@ -28,19 +28,8 @@
             </ListBox.ItemTemplate>
         </ListBox>
 
-        <!--<Canvas
-            Name="WaveformCanvas"
-            Grid.Row="3"
-            Height="100"
-            Margin="10">
-            <Polyline
-                Name="WaveformPolyline"
-                Stroke="Blue"
-                StrokeThickness="1" />
-        </Canvas>-->
-
         <StackPanel
-            Grid.Row="4"
+            Grid.Row="3"
             Margin="10"
             HorizontalAlignment="Center"
             Orientation="Horizontal">
@@ -97,21 +86,36 @@
             </Button>
         </StackPanel>
 
-        <Slider
-            Name="PositionSlider"
-            Grid.Row="6"
-            Margin="10"
-            IsEnabled="{Binding IsPlaying}"
-            Maximum="100"
-            Minimum="0"
-            PropertyChanged="PositionSlider_PropertyChanged"
-            Value="{Binding CurrentPosition}" />
-        <ProgressBar
-            Name="ProgressBar"
+        <Grid Grid.Row="6" Margin="10">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*"/>
+                <ColumnDefinition Width="Auto"/>
+            </Grid.ColumnDefinitions>
+            
+            <Slider
+                Name="PositionSlider"
+                Grid.Column="0"
+                IsEnabled="{Binding IsPlaying}"
+                Maximum="100"
+                Minimum="0"
+                PropertyChanged="PositionSlider_PropertyChanged"
+                Value="{Binding CurrentPosition}" />
+            
+            <TextBlock
+                Grid.Column="1"
+                Margin="10,0,0,0"
+                VerticalAlignment="Center"
+                Text="{Binding SongLength}" />
+        </Grid>
+
+        <local:WaveformDisplay
             Grid.Row="7"
+            Height="50"
             Margin="10"
-            Maximum="100"
-            Minimum="0"
-            Value="{Binding CurrentPosition}" />
+            WaveformData="{Binding WaveformData}"
+            WaveformBrush="{Binding AccentBrush}" />
+
     </Grid>
+
+
 </Window>
